@@ -12,7 +12,8 @@ State = 12 lanes over the Goldilocks field (p = 2^64 − 2^32 + 1), 30 rounds (f
 Poseidon-Goldilocks is 30 rounds of field arithmetic over `p = 2^64 − 2^32 + 1`. The EVM has no native
 field multiply, so each round is many `mulmod`/`addmod`s — and 30 of them add up fast.
 
-The journey, all measured for one `permute` (see [Gas](#gas), reproduce with the commands there):
+How the cost came down, step by step — all figures are for one `permute` (see [Gas](#gas), reproduce
+with the commands there):
 
 1. **Naive plain Solidity** — a direct port of the Python reference (memory `uint256[12]`, a full 12×12
    MDS every round, constants read from a table): **~1,974,000 gas**. Correct, but far too expensive to
@@ -20,15 +21,16 @@ The journey, all measured for one `permute` (see [Gas](#gas), reproduce with the
 2. **solc + assembly** — round constants & MDS coefficients inlined as PUSH immediates (no table loads),
    the state held in stack locals and mixed in place (no memory array, no bounds checks), and the 22
    partial rounds using plonky2's fast-partial-round tables instead of a full MDS: **~71,400 gas**
-   (~28× cheaper). But the fully-unrolled code no longer fits one EIP-170 (24 KB) contract, so it had to
-   be **split into two libraries** — and even then it is still a heavy on-chain operation.
-3. **Hand-written Yul** (what ships) — the same algorithm rewritten by hand to shed the remaining
+   (~28× cheaper). But the fully-unrolled code no longer fits in one contract under the 24 KB limit
+   (EIP-170), so it had to be **split into two libraries** — and even then it is still a heavy on-chain
+   operation.
+3. **Hand-written Yul** (the production version) — the same algorithm rewritten by hand to shed the remaining
    solc/ABI overhead: **~34,900 gas** (another ~2×).
 
-### What ships
+### What gets deployed
 
-The 30 rounds run as two **hand-written Yul stage contracts** — the only bytecode production ships, each
-< EIP-170:
+The 30 rounds run as two **hand-written Yul stage contracts** — the only bytecode deployed in production,
+each under the 24 KB limit (EIP-170):
 
 ```
 Stage1 (yul/Stage1.hex) = full rounds 1–4  +  partial-round init  +  partial rounds 0–10
@@ -61,7 +63,7 @@ intentionally left out.
 |------|------|
 | `src/PoseidonGoldilocks.sol` | **The production contract — Yul only.** Holds the two deployed Yul stage addresses (immutable) and pipelines them by STATICCALL. Exposes `permute(uint256[12])` and the fixed-width `hashWithFlag(flag, uint256[8])`. |
 | `src/PoseidonGoldilocksConstants.sol` | Standalone packed-constant tables (plonky2 rev 109d517d), incl. fast-partial-round tables. |
-| `yul/Stage1.yul`, `yul/Stage2.yul` | Hand-written Yul re-implementations of the two stages — **the only bytecode production ships**. Build with `yul/build.sh 1` / `yul/build.sh 2` (or `yul/build.sh` for both; committed outputs: `*.hex`). |
+| `yul/Stage1.yul`, `yul/Stage2.yul` | Hand-written Yul re-implementations of the two stages — **the only bytecode deployed in production**. Build with `yul/build.sh 1` / `yul/build.sh 2` (or `yul/build.sh` for both; committed outputs: `*.hex`). |
 | `script/Deploy.s.sol` | Production deploy: reads `yul/Stage{1,2}.hex`, deploys both stages, then `PoseidonGoldilocks` wired to their addresses. |
 | `reference/poseidon_reference.py` | Independent (naive-partial-round) Python reference that self-checks against the plonky2 vector. Source of truth for the inlined constants and hash vectors. |
 | `test/ref/PoseidonRef.sol` | The original solc `PGStage1` + `PGStage2` libraries — **test oracle only, never deployed.** The differential fuzz tests check the Yul stages against these over random inputs. |
@@ -117,10 +119,10 @@ One `permute`, across the three implementations:
 |----------------|---------------|----------|-----------|
 | Naive plain Solidity | ~1,974,000 | 1× | `forge test --match-contract NaiveGasTest -vv` |
 | solc + assembly | ~71,400 | ~28× cheaper | `forge test --match-test "test_YulStage._Gas\|GasNotWorse" -vv` |
-| **Hand-written Yul (shipped)** | **~34,900** | **~57× cheaper** | same command (prints `yul stageN gas`) |
+| **Hand-written Yul (deployed)** | **~34,900** | **~57× cheaper** | same command (prints `yul stageN gas`) |
 
 `hashWithFlag` is one `permute` plus call overhead: **~78,000** gas on the solc port vs **~40,800** on the
-shipped Yul.
+deployed Yul.
 
 For reference, the EVM-native `keccak256` is a few hundred gas — Poseidon is far heavier on-chain because
 the EVM has no native field multiply/`x^7`; the trade-off is that it is cheap *inside* a ZK circuit.
