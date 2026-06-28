@@ -1,0 +1,13 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+# Drift-check temp files
+/tmp/stage1_driftcheck.hex
+/tmp/stage2_driftcheck.hex
+
+# Misc
+.env
+*.log
+reference/__pycache__/

@@ -1,0 +1,20 @@
+[profile.default]
+src = "src"
+test = "test"
+libs = ["lib"]
+solc = "0.8.24"
+optimizer = true
+# Kept at the default 200 (favors small deploy). The hot path is hand-written assembly the optimizer
+# barely touches, so raising runs buys almost no runtime gas while inflating deploy size.
+optimizer_runs = 200
+via_ir = true   # required for the fully-unrolled assembly MDS (12+ stack locals)
+# Let the test suite read the hand-written Yul stage builds at runtime (YulStage2Base) so it always
+# exercises the EXACT bytecode the production deploy ships — never a stale baked-in copy.
+fs_permissions = [
+    { access = "read", path = "yul/Stage1.hex" },
+    { access = "read", path = "yul/Stage2.hex" },
+]
+# Needed by test_Stage{1,2}HexMatchesYulSource: they shell out to yul/build*.sh to recompile the .yul
+# and assert the committed .hex is not stale (inverse-drift guard). The tests skip if the pinned solc
+# (0.8.24) is absent, so ffi here never causes a false failure in a toolchain-less environment.
+ffi = true
