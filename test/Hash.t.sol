@@ -1,25 +1,21 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Chaintope Inc.
+// Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {PoseidonGoldilocks} from "../src/PoseidonGoldilocks.sol";
+import {YulStage2Base} from "./YulStage2Base.sol";
 
-/// @dev Expose the internal hash as an external function for testing.
-contract HashHarness {
-    function hashWithFlag(uint256 flag, uint256[8] memory inputs) external pure returns (uint256[4] memory) {
-        return PoseidonGoldilocks.hashWithFlag(flag, inputs);
-    }
-}
-
-/// @title POD2 / plonky2 fixed-width hash (hash_with_flag) test.
-/// @notice Independent anchor: vectors are produced by reference/poseidon_reference.py, which itself
+/// @title POD2 / plonky2 fixed-width hash (hash_with_flag) test (production Yul configuration).
+/// @notice Deploys the Yul stages + PoseidonGoldilocks contract (the production config) and checks
+///         hashWithFlag against vectors produced by reference/poseidon_reference.py, which itself
 ///         self-checks against plonky2's official permute([0;12]) vector. flag=1 is the KV/leaf hash,
 ///         flag=2 the node hash. Run `python3 reference/poseidon_reference.py` to regenerate.
-contract HashTest is Test {
-    HashHarness h;
+contract HashTest is YulStage2Base {
+    PoseidonGoldilocks h;
 
     function setUp() public {
-        h = new HashHarness();
+        h = _deployPoseidon();
     }
 
     /// KV (leaf) hash, flag=1, inputs = key[1,2,3,4] ++ value[5,6,7,8].

@@ -1,5 +1,5 @@
 {
-  "name": "poseidon_hash_contract (Foundry)",
+  "name": "poseidon-goldilocks (Foundry)",
   "build": {
     "dockerfile": "Dockerfile"
   },

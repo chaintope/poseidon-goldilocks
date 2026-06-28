@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Chaintope Inc.
+// Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {PGStage1} from "../src/PoseidonGoldilocks.sol";
+import {PGStage1} from "./ref/PoseidonRef.sol";
 
 /// @title Regression test for the hand-written Yul re-implementation of PGStage1.
 /// @notice Source: yul/Stage1.yul, compiled by `yul/build.sh 1`

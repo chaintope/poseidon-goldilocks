@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Chaintope Inc.
+// Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
+import {PoseidonGoldilocks} from "../src/PoseidonGoldilocks.sol";
 
 /// Shared test base for the hand-written Yul Poseidon stages. It reads the production creation bytecode
 /// from `yul/Stage1.hex` / `yul/Stage2.hex` AT RUNTIME, never baked in as a literal — a baked-in copy
@@ -29,6 +32,22 @@ abstract contract YulStage2Base is Test {
     /// Read the production Yul PGStage1 creation bytecode from yul/Stage1.hex.
     function _yulPGStage1() internal view returns (bytes memory) {
         return vm.parseBytes(_trimWhitespace(vm.readFile(YUL_PGSTAGE1_PATH)));
+    }
+
+    /// Deploy a single Yul stage from its creation bytecode.
+    function _deployYulStage(bytes memory code) internal returns (address a) {
+        assembly {
+            a := create(0, add(code, 0x20), mload(code))
+        }
+        require(a != address(0), "yul stage deploy failed");
+    }
+
+    /// Deploy both Yul stages from the committed .hex and wire them into a PoseidonGoldilocks contract —
+    /// the EXACT production configuration (the same bytecode script/Deploy.s.sol ships).
+    function _deployPoseidon() internal returns (PoseidonGoldilocks) {
+        address s1 = _deployYulStage(_yulPGStage1());
+        address s2 = _deployYulStage(_yulPGStage2());
+        return new PoseidonGoldilocks(s1, s2);
     }
 
     /// Strip trailing ASCII whitespace (\n, \r, space, tab) so vm.parseBytes sees a clean `0x...` string.

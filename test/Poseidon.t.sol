@@ -1,34 +1,26 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Chaintope Inc.
+// Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {PoseidonGoldilocks} from "../src/PoseidonGoldilocks.sol";
+import {YulStage2Base} from "./YulStage2Base.sol";
 
-/// @dev Expose the internal library as an external function for testing & gas measurement.
-contract Harness {
-    function permZero() external pure returns (uint256[12] memory s) {
-        s = PoseidonGoldilocks.permute(s); // s starts all-zero
-    }
-
-    function permute(uint256[12] memory s) external pure returns (uint256[12] memory) {
-        return PoseidonGoldilocks.permute(s);
-    }
-}
-
-/// @title End-to-end Poseidon-Goldilocks permutation test.
-/// @notice Independent anchor: plonky2's official Poseidon-Goldilocks output vector for the all-zero
-///         12-lane input. permute([0;12])[0] == 0x3c18a9786cb0b359 (plonky2 rev 109d517d). Extracted
-///         from the original pod2_playground test/Pod2SMT.t.sol so the full 30-round permute (solc
-///         Stage1 -> Stage2 pipeline) is covered without the SMT registry.
-contract PoseidonTest is Test {
-    Harness h;
+/// @title End-to-end Poseidon-Goldilocks permutation test (production Yul configuration).
+/// @notice Deploys both Yul stages and wires them into the PoseidonGoldilocks contract — the EXACT
+///         bytecode the production deploy ships — then asserts the full 30-round permute against ALL
+///         FOUR of plonky2's official Poseidon-Goldilocks test vectors (rev 109d517d,
+///         poseidon_goldilocks.rs test_vectors()). permute([0;12])[0] == 0x3c18a9786cb0b359.
+contract PoseidonTest is YulStage2Base {
+    PoseidonGoldilocks pos;
 
     function setUp() public {
-        h = new Harness();
+        pos = _deployPoseidon();
     }
 
     function test_PermZero_MatchesPlonky2() public view {
-        uint256[12] memory got = h.permZero();
+        uint256[12] memory zero;
+        uint256[12] memory got = pos.permute(zero);
         uint256[12] memory exp = [
             uint256(0x3c18a9786cb0b359),
             0xc4055e3364a246c3,
@@ -48,9 +40,9 @@ contract PoseidonTest is Test {
         }
     }
 
-    /// @dev Helper: run permute(input) through the harness and assert it equals plonky2's published output.
+    /// @dev Helper: run permute(input) through the Yul pipeline and assert it equals plonky2's output.
     function _checkVector(uint256[12] memory input, uint256[12] memory exp) internal view {
-        uint256[12] memory got = h.permute(input);
+        uint256[12] memory got = pos.permute(input);
         for (uint256 i = 0; i < 12; i++) {
             assertEq(got[i], exp[i], "plonky2 vector mismatch");
         }

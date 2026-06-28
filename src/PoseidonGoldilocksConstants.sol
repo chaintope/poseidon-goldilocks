@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Chaintope Inc.
+// Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
 /// @notice All Poseidon-Goldilocks constants (plonky2 rev 109d517d), incl. the fast-partial-round
