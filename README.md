@@ -1,6 +1,6 @@
 # poseidon-goldilocks
 
-Gas-optimized **Poseidon-Goldilocks** permutation for the EVM (POD2 / plonky2 compatible).
+Gas-optimized **Poseidon-Goldilocks** permutation for the EVM (plonky2 compatible).
 State = 12 lanes over the Goldilocks field (p = 2^64 − 2^32 + 1), 30 rounds (full×4 → partial×22 → full×4).
 
 `permute([0;12])[0] == 0x3c18a9786cb0b359` — plonky2's official test vector.
@@ -59,7 +59,7 @@ intentionally left out.
 
 | Path | What |
 |------|------|
-| `src/PoseidonGoldilocks.sol` | **The production contract — Yul only.** Holds the two deployed Yul stage addresses (immutable) and pipelines them by STATICCALL. Exposes `permute(uint256[12])` and the POD2/plonky2 fixed-width `hashWithFlag(flag, uint256[8])` (flag=1 leaf / flag=2 node). |
+| `src/PoseidonGoldilocks.sol` | **The production contract — Yul only.** Holds the two deployed Yul stage addresses (immutable) and pipelines them by STATICCALL. Exposes `permute(uint256[12])` and the fixed-width `hashWithFlag(flag, uint256[8])`. |
 | `src/PoseidonGoldilocksConstants.sol` | Standalone packed-constant tables (plonky2 rev 109d517d), incl. fast-partial-round tables. |
 | `yul/Stage1.yul`, `yul/Stage2.yul` | Hand-written Yul re-implementations of the two stages — **the only bytecode production ships**. Build with `yul/build.sh 1` / `yul/build.sh 2` (or `yul/build.sh` for both; committed outputs: `*.hex`). |
 | `script/Deploy.s.sol` | Production deploy: reads `yul/Stage{1,2}.hex`, deploys both stages, then `PoseidonGoldilocks` wired to their addresses. |
@@ -91,11 +91,9 @@ Inputs are reduced mod p internally, so each lane may be any `uint256`; outputs 
 elements (< p). `hashWithFlag` takes exactly 8 inputs and returns the first 4 lanes of the permuted state.
 
 > **About `flag`** — it is just a domain-separation parameter written into the state before the inputs,
-> so the same 8 inputs hash to different digests under different flags. The value is yours to choose.
-> It exists because POD2's sparse-Merkle-tree, the original consumer of this hash, separates its two
-> hash kinds with `flag=1` (key/value leaf) and `flag=2` (internal node) — but that convention is a
-> property of *POD2*, not of this hash. If you are not building that tree, pick whatever flags (or just
-> `0`) your protocol needs.
+> so the same 8 inputs hash to different digests under different flags. The value is yours to choose
+> (use `0` if you don't need domain separation); e.g. a Merkle tree might tag leaves and internal nodes
+> with distinct flags to keep the two hash kinds from colliding.
 
 ## Deploy
 
@@ -126,7 +124,7 @@ shipped Yul.
 
 For reference, the EVM-native `keccak256` is a few hundred gas — Poseidon is far heavier on-chain because
 the EVM has no native field multiply/`x^7`; the trade-off is that it is cheap *inside* a ZK circuit.
-Chaining hashes (e.g. an SMT proof of depth _d_) costs ≈ _d_ × `hashWithFlag`.
+Chaining hashes (e.g. a Merkle proof of depth _d_) costs ≈ _d_ × `hashWithFlag`.
 
 ## Build & test
 

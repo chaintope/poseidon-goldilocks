@@ -12,11 +12,8 @@ import {PoseidonGoldilocks} from "../src/PoseidonGoldilocks.sol";
 /// letting tests pass against stale bytecode. Requires the fs read permission for both hex files in
 /// foundry.toml.
 ///
-/// NOTE: this is the Poseidon-only extraction of the original pod2_playground base. The registry-linking
-/// helpers (`_useYulStages` etc., which etched the Yul over the solc libraries linked into
-/// Pod2RegistrySMT) were dropped here because that SMT contract is not part of the Poseidon hash. The
-/// Stage1/Stage2 regression tests deploy the Yul builds directly and diff them against the solc PGStage1
-/// / PGStage2 libraries in src/PoseidonGoldilocks.sol — no registry needed.
+/// The Stage1/Stage2 regression tests deploy the Yul builds directly and diff them against the solc
+/// PGStage1 / PGStage2 reference libraries in test/ref/PoseidonRef.sol.
 abstract contract YulStage2Base is Test {
     /// Path (relative to the foundry project root) to the hand-written Yul PGStage2 creation bytecode.
     string internal constant YUL_PGSTAGE2_PATH = "yul/Stage2.hex";

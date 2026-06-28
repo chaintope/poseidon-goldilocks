@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
 import {PoseidonGoldilocks} from "../src/PoseidonGoldilocks.sol";
 import {YulStage2Base} from "./YulStage2Base.sol";
 
-/// @title POD2 / plonky2 fixed-width hash (hash_with_flag) test (production Yul configuration).
+/// @title Fixed-width hash (hash_with_flag) test (production Yul configuration).
 /// @notice Deploys the Yul stages + PoseidonGoldilocks contract (the production config) and checks
 ///         hashWithFlag against vectors produced by reference/poseidon_reference.py, which itself
 ///         self-checks against plonky2's official permute([0;12]) vector. flag=1 is the KV/leaf hash,

@@ -3,7 +3,7 @@
 // Author: Yukishige Nakajo <nakajo@chaintope.com>
 pragma solidity ^0.8.24;
 
-/// @title Poseidon-Goldilocks (POD2 / plonky2 compatible), gas-optimized for the EVM.
+/// @title Poseidon-Goldilocks (plonky2 compatible), gas-optimized for the EVM.
 ///
 /// THE HASH. Poseidon over the Goldilocks field (p = 2^64 - 2^32 + 1). State = 12 lanes, each a
 /// field element < p. The permutation is 30 rounds applied in this fixed order:
@@ -11,9 +11,9 @@ pragma solidity ^0.8.24;
 /// where every round is:  (1) AddRoundConstants  (2) S-box x^7  (3) MDS linear mixing.
 ///   - FULL round:    S-box on all 12 lanes.
 ///   - PARTIAL round: S-box on lane 0 only (cheaper; security comes from the 8 full rounds).
-/// The 360 round constants and the 12x12 MDS matrix come from plonky2 (rev 109d517d). POD2 feeds
-/// inputs via hashWithFlag (flag=1 leaf / flag=2 node). permute([0;12])[0] == 0x3c18a9786cb0b359
-/// (plonky2's official test vector) — asserted in test/Poseidon.t.sol.
+/// The 360 round constants and the 12x12 MDS matrix come from plonky2 (rev 109d517d).
+/// permute([0;12])[0] == 0x3c18a9786cb0b359 (plonky2's official test vector) — asserted in
+/// test/Poseidon.t.sol. A fixed-width hash on top of permute is exposed as hashWithFlag.
 ///
 /// ARCHITECTURE. The 30 rounds run as TWO hand-written Yul stage contracts (yul/Stage1.yul,
 /// yul/Stage2.yul -> Stage1.hex/Stage2.hex), each < EIP-170 24KB and ~2x cheaper than the solc port:
@@ -87,11 +87,11 @@ contract PoseidonGoldilocks {
         return abi.decode(ret, (uint256, uint256, uint256));
     }
 
-    /// @notice POD2 / plonky2 fixed-width hash. Initializes the 12-lane state to `flag` in every lane,
-    ///         overwrites the first 8 lanes with the (canonicalized) `inputs`, applies one permutation,
-    ///         and returns the first 4 output lanes. Mirrors reference/poseidon_reference.py:hash_with_flag
-    ///         — flag=1 for KV (leaf) hashes, flag=2 for node hashes in the POD2 SMT.
-    /// @param flag    The capacity/domain flag used to fill the state before the inputs are written.
+    /// @notice Fixed-width hash: 8 field elements -> 4. Initializes the 12-lane state to `flag` in every
+    ///         lane, overwrites the first 8 lanes with the (canonicalized) `inputs`, applies one
+    ///         permutation, and returns the first 4 output lanes. Mirrors
+    ///         reference/poseidon_reference.py:hash_with_flag.
+    /// @param flag    Domain-separation tag written into the state before the inputs (use 0 if not needed).
     /// @param inputs  The 8 field-element inputs (reduced mod p so each lane is a canonical Goldilocks elem).
     /// @return out    The first 4 lanes of the permuted state (the hash digest).
     function hashWithFlag(uint256 flag, uint256[8] memory inputs) public view returns (uint256[4] memory out) {
